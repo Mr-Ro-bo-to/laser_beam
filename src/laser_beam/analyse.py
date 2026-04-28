@@ -239,7 +239,10 @@ def fit_m2(
         'unit': x_unit,
     }
 
-    fit_results['M2'] = m2
+    fit_results['m2'] = {
+        'value': m2,
+        'unit': ''
+    }
 
     # set dictionary for data coverate fit_results['data_coverage']['wais_l']['n']/['ok']
     fit_results['data_coverage'] = {}
@@ -302,7 +305,7 @@ def print_m2_result(da: xr.DataArray):
     print(f"  x0              : {r['x0']['value']:.3f} {r['x0']['unit']}")
     print(f"  slope           : {r['slope']['value']:.3f} {r['slope']['unit']}")
     print(f"  rayleigh_length : {r['rayleigh_length']['value']:.3f} {r['rayleigh_length']['unit']}")
-    print(f"  M2              : {r['M2']:.3f}")
+    print(f"  M2              : {r['m2']['value']:.3f}")
     
     dc = r["data_coverage"]
     print("\n  data_coverage:")

@@ -1,0 +1,14 @@
+comand line shortcuts
+
+# activate myenv
+myenv\Scripts\activate
+
+# Github:
+git init
+git add .                       # for update
+git commit -m "first commit"    # for update
+git branch -M master
+git remote add origin https://github.com/Mr-Ro-bo-to/laser_beam
+git push -u origin master
+
+git push                        # for update

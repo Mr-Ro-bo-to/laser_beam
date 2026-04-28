@@ -11,9 +11,3 @@ Overview:
     - pint to convert units
 
 
-comand line shortcuts
-
-# activate myenv
-myenv\Scripts\activate
-
-# 
