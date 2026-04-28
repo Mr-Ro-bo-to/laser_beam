@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "laser_beam"
+version = "0.1.0"
+
+dependencies = [
+    "xarray",
+    "numpy",
+    "pint_xarray",
+    "matplotlib",
+    "scipy",
+    "pandas",
+    "openpyxl",
+]

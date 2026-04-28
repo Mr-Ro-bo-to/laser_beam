@@ -1,0 +1,7 @@
+xarray
+numpy
+pint_xarray
+matplotlib
+scipy
+pandas
+openpyxl
