@@ -7,12 +7,16 @@ import numpy as np
 from pathlib import Path
 
 from PIL import Image, PngImagePlugin
+import h5py
 import json
 
 import os
 import io
 
+from laser_beam.utils import rescale_by_units
+
 __all__ = ['save_dataarray_as_png', 'load_image_as_dataarray',
+           'load_bgdata_ophir_as_dataarray',
            'flat_dict_to_dataset', 'dataset_to_flat_dict',
            'load_table_to_dataset', 'flat_dict_to_excel',  'flat_dict_to_excel_bytes',
            'load_table_to_flat_dict',]
@@ -107,7 +111,7 @@ def save_dataarray_as_png(
     # 7. Save image with metadata
     image.save(file_path, pnginfo=meta)
 
-# load png
+# load image
 def load_image_as_dataarray(
     file_name: str,
     folder: str = None,
@@ -137,10 +141,10 @@ def load_image_as_dataarray(
         xr.DataArray: 2D DataArray with reconstructed metadata.
     """
     
-    print("running: load_image_as_dataarray()")
-    import debugpy
-    print(f"Is debugger attached? {debugpy.is_client_connected()}")
-    breakpoint()
+    # print("running: load_image_as_dataarray()")
+    # import debugpy
+    # print(f"Is debugger attached? {debugpy.is_client_connected()}")
+    # breakpoint()
 
     # 1. Setup file path
     if folder is None:
@@ -148,15 +152,16 @@ def load_image_as_dataarray(
     else:
         file_path = os.path.join(folder, file_name)
     
+
     # 2. Load image with PIL
     image = Image.open(file_path)
+
     
     # Extract metadata (will be empty dict {} for formats without metadata support)
     metadata = image.info
     
     # 3. Detect PNG type
     image_type = metadata.get("type")
-    
     if image_type == "xarray_dataarray":
         load_case = "annotated"
     elif "MaxValue" in metadata:
@@ -277,8 +282,83 @@ def load_image_as_dataarray(
         
         return dataarray
     
-    # 8. Return DataArray
-    # TODO: return the created DataArray
+def load_bgdata_ophir_as_dataarray(
+    filepath: str,
+    frame: int = 1,
+    name: str = "Intensity",
+    variable_unit: str = "a.u.",
+    axis_unit: str = "mm",
+    label = 'My Beam',
+) -> xr.DataArray:
+    """
+    Load a background data frame from an Ophir HDF5 file as a 2D xarray DataArray.
+
+    Parameters:
+        filepath (str): Path to the HDF5 file.
+        frame (int): Frame index to load (default: 1).
+        name (str): Name for the DataArray.
+        default_unit (str): Unit for the data values.
+
+    Returns:
+        xr.DataArray: 2D DataArray with physical axes in mm.
+    """
+
+    with h5py.File(filepath, "r") as f:
+        frames = sorted(f["BG_DATA"].keys(), key=lambda x: int(x))
+        print(f"Available frames: {frames}")
+
+        data     = f[f"BG_DATA/{frame}/DATA"][()]
+        pixel_um = f[f"BG_DATA/{frame}/RAWFRAME/PIXELSCALEXUM"][0]
+
+    # Decode raw bytes → float32 image
+    image = np.array(Image.open(io.BytesIO(data.tobytes())), dtype=np.int32).view(np.float32)
+
+    # Flip upside down (convention, matching load_image_as_dataarray)
+    image = np.flipud(image)
+
+    # Physical axes in mm, centered at 0
+    Nx, Ny = image.shape
+    x = pixel_um * (np.arange(Nx) - (Nx - 1) / 2)
+    y = pixel_um * (np.arange(Ny) - (Ny - 1) / 2)
+
+    x = rescale_by_units(x,'μm',axis_unit)
+    y = rescale_by_units(y,'μm',axis_unit)
+
+    dataarray = xr.DataArray(
+        image,
+        dims=["x", "y"],
+        coords={
+            "x": ("x", x, {"units": axis_unit, "long_name": "$x$"}),
+            "y": ("y", y, {"units": axis_unit, "long_name": "$y$"}),
+        },
+        name=name,
+        attrs={
+            "units": variable_unit,
+            'label': label},
+    )
+
+    return dataarray
+
+# load bgData file from ophir beam gage software
+def load_bgdata_ophir(filepath, frame=1):
+    with h5py.File(filepath, "r") as f:
+        # List available frames
+        frames = sorted(f["BG_DATA"].keys(), key=lambda x: int(x))
+        print(f"Available frames: {frames}")
+        
+        data     = f[f"BG_DATA/{frame}/DATA"][()]
+        pixel_um = f[f"BG_DATA/{frame}/RAWFRAME/PIXELSCALEXUM"][0]
+    
+    # load image doing all the typcasting magic
+    image = np.array(Image.open(io.BytesIO(data.tobytes())), dtype=np.int32).view(np.float32)
+    
+    # Physical axes in mm
+    h, w = image.shape
+    x_mm = np.arange(w) * pixel_um / 1000
+    y_mm = np.arange(h) * pixel_um / 1000
+    
+    return image, x_mm, y_mm
+
 
 LOAD_TABLE_CONFIG_DEFAULT = {
     'header': None,             # ['keys']if None, load all key-value pairs until first empty row; otherwise, only load specified keys
@@ -574,15 +654,15 @@ if __name__ == "__main__":
     folder = r'tests\test_io'
     file = 'Example_V2.xlsx'
 
-    my_config = LOAD_Table_CONFIG_DEFAULT.copy()
+    my_config = LOAD_TABLE_CONFIG_DEFAULT.copy()
     my_config['header'] = ['title']
     #my_config['columns'] = ['y']
 
-    result = load_table_to_dict(folder = folder, file_name=file, config=my_config)
+    result = load_table_to_flat_dict(folder = folder, file_name=file, config=my_config)
 
     print(result)
 
-    ds = dict_to_dataset(result)
+    ds = flat_dict_to_dataset(result)
 
     #lb.plot_1D([ds['X'],ds['Y']])
     lb.plot_1D(ds)

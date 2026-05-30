@@ -6,11 +6,69 @@ import xarray as xr
 
 # import all functions from all modules in laser_beam
 from laser_beam.utils import gauss_2D, supergauss_round_2D, supergauss_square_2D, square_2D, ellipse_2D, serrated_aperture, squircle_2D
-from laser_beam.utils import convert_wavelength_2_frequency
-from laser_beam.visualize import plot_2D
+from laser_beam.utils import gauss_1D, cosine_1D, hyperbola_1D
+#from laser_beam.utils import convert_wavelength_2_frequency
+#from laser_beam.visualize import plot_2D
 
 __all__ = ['create_beam_xy','create_beam_2D']
 
+# create beam with 2 dimensions
+def create_beam_1D(
+    label: str = "My Laser Beam",
+    type = "Gauss",
+    function = None,
+    func_params = {},
+
+    name = "Intensity",
+    units = "arb.u.",
+
+    axis_N: int = 100,
+    axis_unit: str = "px",
+    axis_pixelsize: float = 1.0,
+    dim = 'x',      
+    ) -> xr.DataArray:
+    """
+    Parameters
+    ----------
+
+    type : str, default 'Gauss', options {'Gauss'}.
+        Identifier for the 2D profile generatorr
+
+    dim : str, default 'x'
+        Name of the  dimension in the xarray object.
+
+    """
+
+    # Define coordinate arrays
+    axis = axis_pixelsize * (np.arange(axis_N) - (axis_N - 1) / 2)
+
+    # calculate data based on type
+    if type == 'Gauss':
+        data = gauss_1D(axis, **func_params)
+    elif type == 'Cosine':
+        data = cosine_1D(axis, **func_params)
+    elif type == 'Hyperbola':
+        data = hyperbola_1D(axis, **func_params)
+    elif type == 'Custom':
+        if not callable(function):
+            raise TypeError("'function' must be callable for Custom type")
+        data = function(axis, **func_params)
+    else:
+        raise ValueError(f"Unknown beam type: {type}")
+    
+    
+    beam = xr.DataArray(
+        data,
+        dims=[dim,],
+        coords={
+            dim: (dim, axis, {'units': axis_unit})
+        },
+        name=name,
+        attrs={'units': units,
+               'label': label,
+        },
+    )
+    return beam
 
 # create beam with coordinates x and y
 def create_beam_xy(
@@ -134,79 +192,29 @@ def create_beam_2D(
     )
     return beam
 
-### ----------------------------
-### playing around with xarray
-
-# # Define xarray object with given dimensions and coordinates
-# def define_coordinates(dims, coords):
-#     """
-#     Creates a Dataset skeleton with defined dimensions and coordinates.
-    
-#     Parameters:
-#     - dims: list of str, e.g., ['x', 'y', 'frequency']
-#     - coords: list of tuples (dim_name, coord_name, array, unit)
-#     """
-#     coords_dict = {}
-
-#     for dim, coord_name, array, unit in coords:
-#         if dim not in dims:
-#             raise ValueError(f"Dimension '{dim}' not in dims list.")
-
-#         coords_dict[coord_name] = xr.DataArray(
-#             data = array, 
-#             dims=dim, 
-#             attrs={'units': unit} if unit else {}   # only assign units if provided
-#         )
-
-#     ds = xr.Dataset(coords=coords_dict)
-
-#     return ds
-
-# # Add variable to ds
-# def define_variable(ds, func, func_params, dims, var_name, var_unit):
-#     """
-#     ds: The coordinate skeleton (Dataset)
-#     func: The generator function (e.g., gauss)
-#     func_params: dict of arguments for the function
-#     dims: dict mapping function arguments to ds dimensions, e.g., {'X': 'x', 'Y': 'y'}
-#     var_name: name of the resulting variable
-#     var_unit: unit string
-#     """
-
-#     # 1. Extract the specific coordinate arrays from the Dataset
-#     # We maintain the order defined in the 'dims' mapping
-#     coord_arrays = [ds.coords[ds_dim].values for ds_dim in dims.values()]
-
-#     # 2. Create Meshgrid (indexing='ij' is crucial for matrix-like alignment)
-#     meshes = np.meshgrid(*coord_arrays, indexing='ij')
-
-#     # 3. Call the function using the meshes and the provided params
-#     # We unpack the meshes as the first positional arguments
-#     data_result = func(*meshes, **func_params) 
-
-#     # 4. Wrap in a DataArray
-#     # IMPORTANT: We use the dimensions provided in the mapping
-#     temp_da = xr.DataArray(
-#         data=data_result,
-#         coords={d: ds.coords[d] for d in dims.values()}, 
-#         dims=list(dims.values()),
-#         name=var_name,
-#         attrs={'units': var_unit}
-#     )
-
-#     # 5. Broadcast into the original Dataset
-#     # Xarray automatically handles 'wavelength' even if data_result doesn't use it.
-#     # If wavelength size is 1, it just stretches the Gaussian across it.
-#     ds[var_name] = temp_da
-
-#     return ds
 
 
 if __name__ == "__main__":
     # test laser_beam.create module
     print("Testing laser_beam.create module...")
 
+    import laser_beam as lb
     import matplotlib.pyplot as plt
+
+    def my_weird_beam(x, a=1, b=1):
+        return b* np.cos(a*x)/x
+
+    beam_1D = create_beam_1D(
+        label = 'Voltage Distribution',
+        type = 'Cosine',
+        func_params={
+            'w': 0.1,
+        }
+    )
+
+    lb.plot_1D(
+        beam_1D,
+        legend_show=False)
 
     beam = create_beam_xy(
         type="Squircle",
@@ -223,7 +231,8 @@ if __name__ == "__main__":
         axis_pixelsize=0.1,
     )
 
-    plot_2D(beam)
+    
+    # lb.plot_2D(beam)
 
     #print(beam)
 

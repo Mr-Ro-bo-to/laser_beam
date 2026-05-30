@@ -3,6 +3,9 @@ comand line shortcuts
 # activate myenv
 myenv\Scripts\activate
 
+# install library
+pip install library
+
 # Github:
 git init
 git add .                       # for update

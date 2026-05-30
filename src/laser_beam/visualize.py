@@ -396,16 +396,17 @@ def plot_2D(
 
     # set color bar label
     if cbar_show == True and cbar_label_show == True:
-        cbar.set_label(f"${cbar_name}$ {left_br}{get_units(da)}{right_br}")
+        cbar.set_label(f"{cbar_name} {left_br}{get_units(da)}{right_br}")
 
     # set x and y label
     if x_label_show == True:    
-        xlabel = f"${coord_x_label}$ {left_br}{unit_x}{right_br}"
+        #xlabel = f"${coord_x_label}$ {left_br}{unit_x}{right_br}"
+        xlabel = f"{coord_x_label} {left_br}{unit_x}{right_br}"
         ax.set_xlabel(xlabel)
     else:
         ax.set_xlabel("")
     if y_label_show == True:
-        ylabel = f"${coord_y_label}$ {left_br}{unit_y}{right_br}"
+        ylabel = f"{coord_y_label} {left_br}{unit_y}{right_br}"
         ax.set_ylabel(ylabel)
     else:
         ax.set_ylabel("")

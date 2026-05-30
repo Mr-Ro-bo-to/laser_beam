@@ -12,7 +12,7 @@ from matplotlib.path import Path
 __all__ = [
     'hello_world', 
     'info', 
-    'gauss_1D',
+    'gauss_1D', 'cosine_1D', 'hyperbola_1D',
     'gauss_2D', 'supergauss_round_2D', 'supergauss_square_2D', 'square_2D', 'ellipse_2D', 'squircle_2D', 'serrated_aperture_points',
     'rescale_by_units', 'convert_coord',
     'convert_wavelength_2_frequency',
@@ -70,8 +70,27 @@ def gauss_1D(x, amplitude=1.0, x0=0.0, width=10.0) -> np.ndarray:
     s = width / 4  # convert D4sigma to standard deviation
     return amplitude * np.exp(-((x-x0) / np.sqrt(2) / s) ** 2)
 
+# cosine:
+def cosine_1D(x, amplitude=1.0, w = 1, phase = 0, offest = 0) -> np.ndarray:
+    """
+    Generate a 1D cosine wave using radians.
+
+    Parameters:
+    - x (array-like): 1D array of input coordinates (independent variable).
+    - amplitude (float): Peak amplitude (A) of the cosine wave.
+    - w (float): Angular frequency (ω) in radians per unit of x.
+                         Note: ω = 2π * f if using frequency in cycles per unit.
+    - phase (float): Phase shift (φ) in radians.
+    - offset (float): Vertical offset (C).
+
+    Returns:
+    - np.ndarray: 1D array of cosine values computed as:
+                  A * cos(ωx + φ) + C
+    """
+    return amplitude * np.cos(w * x + phase) + offest
+
 # hyperbola:
-def hyperbola_1D(x, w0=1.0, x0=0.0, slope= 1.0) -> np.ndarray:
+def hyperbola_1D(x, w0=10.0, x0=0.0, slope= 1.0) -> np.ndarray:
     """
     Generate 1D hyperbolic distribution.
     
@@ -520,7 +539,7 @@ def convert_coord(da, coord_name, target_unit):
         return da
 
     coord = da.coords[coord_name]
-    current_unit = coord.attrs.get("units")
+    current_unit = coord.attrs.get('units')
 
     if current_unit is None:
         print(f"No unit found for {coord_name}, skipping conversion.")
@@ -529,13 +548,19 @@ def convert_coord(da, coord_name, target_unit):
     try:
         new_values = rescale_by_units(coord.values, current_unit, target_unit)
 
+        long_name = coord.attrs.get('long_name')
+        
         # assign updated coordinate
         da = da.assign_coords({
             coord_name: (coord.dims, new_values)
         })
 
         # update metadata
-        da.coords[coord_name].attrs["units"] = target_unit
+        da.coords[coord_name].attrs['long_name'] = long_name
+        da.coords[coord_name].attrs['units'] = target_unit
+
+        # skip derived metadata
+        # DoDo: define globally 'primary' vs 'derived' attributes  COORD_ATTR_TYPES = {'primary': {'long_name,'units'}, 'derived': {}'mean', 'varianc'}
 
         return da
 

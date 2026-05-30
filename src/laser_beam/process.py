@@ -23,7 +23,7 @@ def crop(beam,
 
     add overlay to source (optionally): used for visualizaion 
     
-    Example: crop(ds, wavelength=(400, 700, 'nm'), x=(0, 5, 'cm'))
+    Example: crop(da, wavelength=(400, 700, 'nm'), x=(0, 5, 'cm'))
     """
     # make copy of beam for output
     beam_out = beam.copy()
@@ -39,7 +39,21 @@ def crop(beam,
     for dim, params in kwargs.items():
         #print(f"  {dim}: {params}")
         # unpack params
-        start, stop, unit = params
+
+        params = tuple(params)
+        # (start, stop, unit)
+        if len(params) == 3:
+            start, stop, unit = params
+            center = False
+        # (start, stop, unit, 'center')
+        elif len(params) == 4:
+            start, stop, unit, center_str  = params
+            if center_str == 'center':
+                center = True
+            else:
+                raise ValueError(f"Params for '{dim}' must be (start, stop, 'unit', 'center') but got ({start}, {stop}, '{unit}', '{center_str}')")                  
+        else:
+            raise ValueError(f"Params for '{dim}' must be (start, stop, unit) or (start, stop, 'unit', 'center')  but got ({start}, {stop}, '{unit}', '{center_str}')")
 
         if dim not in beam.dims:
             raise ValueError(f"Dimension '{dim}' not found in the xarray object.")
@@ -62,6 +76,13 @@ def crop(beam,
         beam_out = beam_out.sel(
             {dim: slice(start, stop)}
         )
+
+        # shift coordinate axis so midpoint becomes zero
+        if center:
+            coord = beam_out[dim].values
+            midpoint = (coord[0] + coord[-1]) / 2
+            beam_out[dim] = beam_out[dim] - midpoint
+            beam_out[dim].attrs['center_offset'] = float(midpoint)
 
         # calculate statistics:
         if calc_statistics:
@@ -231,7 +252,14 @@ def cross_section(
 
     return da_cross_section 
 
-
+# def apply_coordinate_center_shift(da, dim):
+#     """Shift coordinate so the midpoint of dim becomes zero."""
+#     coord = da[dim].values
+#     midpoint = (coord[0] + coord[-1]) / 2
+#     da[dim] = da[dim] - midpoint
+#     # propagate to attrs if you store the physical offset
+#     da[dim].attrs['center_offset'] = float(midpoint)
+#     return da
 
 # ToDo: type hint for xarray
 def set_Energy(beam,
